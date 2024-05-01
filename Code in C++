@@ -1,0 +1,525 @@
+#define CURL_STATICLIB
+#include <iostream>
+#include <fstream>
+#include <string>
+#include "Comment.h";
+#include "rapidjson/document.h"
+#include "rapidjson/filereadstream.h"
+using namespace rapidjson;
+
+
+#include "curl/curl.h"
+
+#ifdef _DEBUG
+#pragma comment (lib, "curl/libcurl_a_debug.lib")
+#else
+#pragma comment (lib, "curl/libcurl_a.lib")
+#endif
+
+#pragma comment (lib, "Normaliz.lib")
+#pragma comment (lib, "Ws2_32.lib")
+#pragma comment (lib, "Wldap32.lib")
+#pragma comment (lib, "Crypt32.lib")
+#pragma comment (lib, "advapi32.lib")
+
+
+// This callback function will be called by libcurl when it receives data
+size_t write_callback(char* ptr, size_t size, size_t nmemb, std::string* data) {
+    size_t total_size = size * nmemb;
+    data->append(ptr, total_size);
+    return total_size;
+}
+
+// Functions for Menu
+int showStocks();
+int SearchByTime();
+int writeComment();
+int showAllComments();
+
+// Functions For Login Credentials
+int login();
+int createAcc();
+
+// Global Variables
+std::string username;
+std::string userid;
+std::string pass;
+
+int main() {
+   
+    int option1;
+
+    std::cout << "    *****  Welcome To OUR APP  ***** \n" << std::endl;
+    std::cout << " 1. Login\n";
+    std::cout << " 2. Create Account\n";
+    std::cout << " 3.Exit\n";
+    std::cout << " Enter your choice: "; std::cin >> option1;
+    std::cin.ignore();
+    int a, b;
+    switch (option1)
+    {
+    case 1:
+        a = login();
+        if (a == 1) {
+            return 1;
+}
+        break;
+    case 2:
+        b = createAcc();
+        if (b == 1) {
+            return 1;
+        }
+        break;
+    case 3:
+        return 0;
+    default:
+        std::cout << "Invalid Choice" << std::endl;
+        return 1;
+    }
+
+    std::cout << std::endl;
+    std::cout << " Hey! Glad to see you " + std::string(username) << std::endl;
+    std::cout << " Showing you Available stocks....\n" << std::endl;
+    showStocks();
+   
+   
+   
+    std::cout <<  std::string(username) + ", Kindly choose an option below to proceed with: " << std::endl;
+
+    char option3;
+    do
+    {
+        int option2;
+        std::cout << "\n  ***  Menu  **** \n" << std::endl;
+        std::cout << " 1.Show All Stocks\n" << " 2.Search by specific Time\n";
+        std::cout << " 3.Write a Comment on Timeline\n" << " 4.Show My Comments\n" << " 5.Exit\n" << std::endl;
+        std::cout << "Enter your choice from 1-5: "; std::cin >> option2;
+        std::cin.ignore();
+        switch (option2)
+        {
+        case 1:
+            showStocks();
+            break;
+        case 2:
+            SearchByTime();
+            break;
+        case 3:
+            writeComment();
+            break;
+        case 4:
+            showAllComments();
+            break;
+        case 5:
+            return 0;
+        default:
+            std::cout << " [Error] Invalid Choice, Enter a number between 1-5 upon restarting..." << std::endl;
+            return 1;
+        }
+        std::cout << std::endl;
+        std::cout << " Do you want to go back to Menu? [Y/N]: "; std::cin >> option3;
+        std::cin.ignore();
+
+    } while (option3 == 'Y' || option3 == 'y');
+
+    return 0;
+}
+
+  //-----------------------------------//
+  //-----------------------------------//
+  //   Below are Function Definitions  //
+  //   For the Menu Functions          //
+  // ----------------------------------//
+  //-----------------------------------//
+
+int showStocks()
+{
+    std::string stockTicker;
+    int option;
+    std::cout << "Choose the Stock below: \n" << "1.AAPL\n" << "2.AMZN\n" << "3.META\n" << "4.TSLA\n";
+    std::cin >> option;
+    std::cout << std::endl;
+    switch (option) {
+    case 1:
+        stockTicker = "AAPL";
+        break;
+    case 2:
+        stockTicker = "AMZN";
+        break;
+    case 3:
+        stockTicker = "META";
+        break;
+    case 4:
+        stockTicker = "TSLA";
+        break;
+    default:
+        std::cout << "Invalid choice, please try again and input a valid number from 1-4";
+        showStocks();
+    }
+
+    // Initialize libcurl
+    curl_global_init(CURL_GLOBAL_ALL);
+    CURL* curl = curl_easy_init();
+    if (!curl) {
+        std::cerr << "Error initializing libcurl" << std::endl;
+        return 1;
+    }
+
+    // Set the URL of the API endpoint you want to fetch data from
+    std::string url = "https://financialmodelingprep.com/api/v3/historical-chart/5min/" + std::string(stockTicker) + "?apikey=Ultspk8DJn0VP1UJPwVwCFbv3sYA8pIU";
+
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+
+    std::string response_data;
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response_data);
+
+
+    CURLcode res = curl_easy_perform(curl);
+    if (res != CURLE_OK) {
+        std::cerr << "Failed to fetch data: " << curl_easy_strerror(res) << std::endl;
+        curl_easy_cleanup(curl);
+        curl_global_cleanup();
+        return 1;
+    }
+
+
+    //std::cout << "Response from server:" << std::endl;
+    //std::cout << response_data << std::endl;
+
+    // save the response to a txt file
+    std::ofstream out("response.txt");
+    out << response_data;
+    out.close();
+
+
+    std::ifstream file("response.txt");
+
+    if (!file.is_open()) {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    // Read the contents of the file into a string
+    std::string jsonString((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+    // Close the file
+    file.close();
+
+    // Parse the JSON string
+    Document document;
+    document.Parse(jsonString.c_str());
+
+    // Check if parsing succeeded
+    if (document.HasParseError()) {
+        std::cerr << "Error: JSON parsing failed" << std::endl;
+        return 1;
+    }
+
+    // Assuming the JSON data is an array of objects
+    if (!document.IsArray()) {
+        std::cerr << "Error: Invalid JSON format - Expected an array" << std::endl;
+        return 1;
+    }
+
+    // Loop through each object in the array
+    for (SizeType i = 0; i < document.Size(); i++) {
+        const Value& datapoint = document[i];
+
+        // Extract data fields
+        const std::string& date = datapoint["date"].GetString();
+        double open = datapoint["open"].GetDouble();
+        double low = datapoint["low"].GetDouble();
+        double high = datapoint["high"].GetDouble();
+        double close = datapoint["close"].GetDouble();
+        int volume = datapoint["volume"].GetInt();
+       
+            // Print or use the extracted data
+            std::cout << "Date: " << date << "," << std::endl << "Open: " << open << "," << std::endl << "Low: " << low << "," << std::endl
+                << "High: " << high << "," << std::endl << "Close: " << close << "," << std::endl << "Volume: " << volume << std::endl << std::endl;
+       
+
+        //store the extracted data in a txt file named parsedData.txt
+        std::ofstream out("parsedData.txt", std::ios::app);
+        out << "Date: " << date << "," << std::endl << "Open: " << open << "," << std::endl << "Low: " << low << "," << std::endl
+            << "High: " << high << "," << std::endl << "Close: " << close << "," << std::endl << "Volume: " << volume << std::endl << std::endl;
+
+        out.close();
+    }
+
+    std::cout << std::endl;
+
+    //Ending API session
+    curl_easy_cleanup(curl);
+    curl_global_cleanup();
+}
+
+  //************************//
+  //    SECOND FUNCTION     //
+  //************************//
+
+int SearchByTime()
+{
+    std::string date;
+    std::cout << "Enter the date and time in the format yyyy-mm-dd hh:mm:ss: " << std::endl;
+    std::getline(std::cin, date);
+
+    std::cout << std::endl;
+   
+
+    std::ifstream file2("parsedData.txt");
+    if (!file2.is_open()) {
+    std::cerr << "Error: Unable to open file" << std::endl;
+    return 1;
+    }
+
+    std::string line;
+    // Loop through each line in the file, and when the date and time is found, print the whole data of that specific date and time, including open, low, high, close, and volume.
+    while (std::getline(file2, line)) {
+        if (line.find(date) != std::string::npos) {
+    std::cout << line << std::endl;
+            for (int i = 0; i < 5; i++) {
+    std::getline(file2, line);
+    std::cout << line << std::endl;
+    }
+    break;
+    }
+    }
+
+    file2.close();
+}
+
+  //************************//
+  //    Third FUNCTION      //
+  //************************//
+
+int writeComment()
+{
+    std::string date;
+    std::cout << "Enter the date and time of timeline where you want to add the comment in the format yyyy-mm-dd hh:mm:ss: " << std::endl;
+    std::getline(std::cin, date);
+    std::string comment;
+    std::cout << "\nAdd comment: " << std::endl;
+    std::getline(std::cin, comment);
+   
+    // Using DMA to create new Comment Class Object;
+    Comment* com = new Comment(username, userid, comment);
+
+    //Opening Files to manage data
+    std::ifstream file2("parsedData.txt");
+    if (!file2.is_open()) {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    std::ofstream file3(std::string(userid) + ".txt", std::ios::app);
+    if (!file3.is_open()) {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    std::string line;
+    // Loop through each line in the file, and when the date and time is found, print the whole data of that specific date and time, including open, low, high, close, and volume.
+    while (std::getline(file2, line)) {
+        if (line.find(date) != std::string::npos) {
+            std::cout << line << std::endl;
+            file3 << line << std::endl;
+            for (int i = 0; i < 5; i++) {
+                std::getline(file2, line);
+                std::cout << line << std::endl;
+                file3 << line << std::endl;
+            }
+            std::cout << "Comment: " << com->getComment() << std::endl;
+            file3 << "Comment: " << com->getComment() << std::endl;
+            break;
+        }
+    }
+    file3 << std::endl;
+
+    file2.close();
+    file3.close();
+    delete com;
+}
+
+  //************************//
+  //    Fourth FUNCTION     //
+  //************************//
+
+int showAllComments()
+{
+    std::ifstream f4(std::string(userid) + ".txt");
+    if (!f4.is_open()) {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    std::string line;
+    while (!f4.eof())
+    {
+        for (int i = 0; i <= 6; i++)
+        {
+            getline(f4, line);
+            std::cout << line << std::endl;
+        }
+        std::cout<< std::endl;
+    }
+
+}
+
+  //-----------------------------------//
+  //-----------------------------------//
+  //   Function Definitons For         //
+  //    Login Credentials              //
+  // ----------------------------------//
+  //-----------------------------------//
+
+
+int login()
+{
+    std::cout << "Enter your ID: "; std::cin >> userid;
+    std::cin.ignore();
+    std::cout << "Enter your First Name (Optional): "; getline(std::cin, username);
+    std::cout << "Enter your Password: ";
+    //getline(std::cin, pass);
+    std::cin >> pass;
+    std::cin.ignore();
+
+    //std::cout << userid << std::endl;
+    //std::cout << username << std::endl;
+    //std::cout << pass << std::endl;
+
+
+    std::ifstream  file("Allusers.txt");
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    std::string line;
+    bool matched = false;
+    while (std::getline(file, line))
+    {
+        if (line.find(userid) != std::string::npos)
+        {
+            for (int i = 0; i < 3; i++) {
+                std::getline(file, line);
+                /*std::cout << line << std::endl;
+                std::cout << pass << std::endl;*/
+                //if(i == 2){
+                    if (line == pass)
+                    {
+                        //Password Matched
+                        matched = true;
+                        std::cout << "\nLogin Successfull!" << std::endl;
+                        break;
+                    }
+                    else
+                    {
+                        std::cout << "\nInvalid Password" << std::endl;
+                        return 1;
+                    }
+               // }
+               
+            }
+        }
+    }
+
+    if (!matched) {
+        std::cout << "User ID not found" << std::endl;
+        createAcc();
+
+    }
+   
+
+    file.close();
+}
+
+int createAcc()
+{
+    std::cout << "Create your account:\n";
+    std::cout << "Enter your First Name: ";
+    std::getline(std::cin, username);
+
+   /* std::cout << "Create your ID (it should be in Numeric): ";
+    std::getline(std::cin, userid);*/
+
+    std::string userid;
+    bool valid = true;
+
+    do {
+        valid = true; // Reset valid flag
+
+        std::cout << "Create your ID (it should be in Numeric, 3 digits only): ";
+        std::getline(std::cin, userid);
+
+        // Check if the length is 5 digits
+        if (userid.length() != 3) {
+            valid = false;
+            std::cout << "Error: ID should be exactly 3 digits." << std::endl;
+            continue;
+        }
+
+        // Check each character
+        for (char c : userid) {
+            // Check if the character is a digit
+            if (!std::isdigit(c)) {
+                valid = false;
+                std::cout << "Error: ID should contain only numeric digits." << std::endl;
+                break; // No need to continue checking if already invalid
+            }
+            // Check if the digit is within the range 0-9
+            if (c < '0' || c > '9') {
+                valid = false;
+                std::cout << "Error: ID should contain digits from 0 to 9 only." << std::endl;
+                break; // No need to continue checking if already invalid
+            }
+        }
+    } while (!valid);
+
+    //std::cout << "ID creation successful. Your ID is: " << userid << std::endl;
+
+   /* while (!(userid>=0  && userid<=9)) {
+
+    }*/
+    std::cout << "Create your Password: ";
+    std::getline(std::cin, pass);
+   
+
+    std::ofstream data("Allusers.txt", std::ios::app);
+    if (!data.is_open())
+    {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    std::ifstream  checkFile("Allusers.txt");
+    if (!checkFile.is_open())
+    {
+        std::cerr << "Error: Unable to open file" << std::endl;
+        return 1;
+    }
+
+    std::string line;
+    while (std::getline(checkFile, line))
+    {
+        if (line.find(userid) != std::string::npos)
+        {
+            std::cout << "User ID already taken." << std::endl;
+            createAcc();
+           
+        }
+    }
+
+    std::cout << "\n Successfully created an account!" << std::endl;
+
+    data << username << std::endl;
+    data << userid << std::endl;
+    data << pass << std::endl;
+    data << std::endl;
+
+    data.close();
+    checkFile.close();
+}
